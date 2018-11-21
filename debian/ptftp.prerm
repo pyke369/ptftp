@@ -1,0 +1,9 @@
+#/bin/sh
+
+set -e
+if [ "$1" = "remove" ]; then
+    if [ -x "/etc/init.d/ptftp" ] || [ -e "/etc/init/ptftp.conf" ]; then
+        invoke-rc.d ptftp stop || exit $?
+    fi
+fi
+exit 0

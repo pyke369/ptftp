@@ -1,0 +1,5 @@
+ptftp
+_*
+debian/*debhelper*
+debian/*substvars*
+debian/files

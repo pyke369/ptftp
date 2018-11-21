@@ -1,0 +1,8 @@
+#!/bin/sh
+
+set -e
+# if [ -d /run/systemd/system ] ; then
+#   systemctl enable ptftp
+#   systemctl start ptftp
+# fi
+exit 0

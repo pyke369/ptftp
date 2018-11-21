@@ -1,0 +1,11 @@
+Source: ptftp
+Section: net
+Priority: optional
+Maintainer: Pierre-Yves Kerembellec <py.kerembellec@gmail.com>
+Build-Depends: debhelper (>= 5), git-core, make, golang-1.11
+Standards-Version: 3.7.2
+
+Package: ptftp
+Architecture: any
+Description: programmable TFTP client/server
+
