@@ -13,7 +13,7 @@ import (
 
 func httpHandler(response http.ResponseWriter, request *http.Request) {
 	file := strings.Replace(strings.Replace(strings.Replace(strings.Replace(request.URL.Path, "../", "", -1), "./", "", -1), "&", "", -1), ";", "", -1)
-	status, timeout, tsize, mode, target, content, headers, env, start, end, sent := 200, 4, -1, "", "", []byte{}, map[string]string{}, []string{}, 0, -1, 0
+	status, timeout, tsize, mode, target, content, headers, env, start, end, sent := 200, 10, -1, "", "", []byte{}, map[string]string{}, []string{}, 0, -1, 0
 	sstart := time.Now()
 	logger.Info(map[string]interface{}{"protocol": "http", "event": "request", "file": file, "remote": request.RemoteAddr})
 	defer func() {
@@ -132,8 +132,11 @@ func httpHandler(response http.ResponseWriter, request *http.Request) {
 		case "exec":
 			content = content[start : start+bsize]
 		}
-		response.Write(content)
-		toffset += bsize
-		sent += bsize
+		if size, err := response.Write(content); err != nil {
+			break
+		} else {
+			toffset += size
+			sent += size
+		}
 	}
 }

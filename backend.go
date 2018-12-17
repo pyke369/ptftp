@@ -16,10 +16,11 @@ import (
 )
 
 func fileBackend(target string, offset, length int) (total int, content []byte) {
-	defer func() {
-		logger.Debug("FILE %s [ %d - %d ] > %d / %d", target, offset, offset+length-1, total, len(content))
-	}()
+	start := time.Now()
 	total = -1
+	defer func() {
+		logger.Debug("FILE %s [ %d - %d ] > %d / %d (%d ms)", target, offset, offset+length-1, total, len(content), time.Now().Sub(start)/time.Millisecond)
+	}()
 	if info, err := os.Stat(target); err == nil && info.Mode().IsRegular() {
 		total = int(info.Size())
 		if offset < total {
@@ -38,10 +39,11 @@ func fileBackend(target string, offset, length int) (total int, content []byte) 
 }
 
 func httpBackend(target string, offset, length, timeout int, headers map[string]string) (total int, content []byte) {
-	defer func() {
-		logger.Debug("HTTP %s [ %d - %d ] > %d / %d", target, offset, offset+length-1, total, len(content))
-	}()
+	start := time.Now()
 	total = -1
+	defer func() {
+		logger.Debug("HTTP %s [ %d - %d ] > %d / %d (%d ms)", target, offset, offset+length-1, total, len(content), time.Now().Sub(start)/time.Millisecond)
+	}()
 	request, _ := http.NewRequest(http.MethodGet, target, nil)
 	request.Header.Add("User-Agent", fmt.Sprintf("%s/%s", progname, version))
 	request.Header.Add("Range", fmt.Sprintf("bytes=%d-%d", offset, offset+length-1))
@@ -71,10 +73,11 @@ func httpBackend(target string, offset, length, timeout int, headers map[string]
 }
 
 func execBackend(target string, timeout int, env []string) (total int, content []byte) {
-	defer func() {
-		logger.Debug("EXEC %s > %d / %d", target, total, len(content))
-	}()
+	start := time.Now()
 	total = -1
+	defer func() {
+		logger.Debug("EXEC %s > %d / %d (%d ms)", target, total, len(content), time.Now().Sub(start)/time.Millisecond)
+	}()
 	parts := strings.Split(target, " ")
 	command := &exec.Cmd{Path: parts[0], Args: parts, Env: append(os.Environ(), env...)}
 	if stdout, err := command.StdoutPipe(); err == nil {
