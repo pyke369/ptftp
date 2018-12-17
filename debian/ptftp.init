@@ -27,7 +27,7 @@ PIDFILE=/var/run/ptftp.pid
 case "$1" in
   start)
     log_daemon_msg "Starting $NAME"
-    ulimit -n 8192
+    ulimit -n 65536
     start-stop-daemon --start --oknodo --quiet --background --exec "$BINARY server" --make-pidfile --pidfile "$PIDFILE" -- "$CONFIGURATION"
     log_end_msg $?
     ;;

@@ -8,14 +8,14 @@ import (
 
 const (
 	progname = "ptftp"
-	version  = "1.0.1"
+	version  = "1.1.0"
 )
 
 func usage() {
 	fmt.Fprintf(os.Stderr, "usage:\n"+
 		"  %s version\n"+
 		"  %s server [<configuration file>]\n"+
-		"  %s <host[:<port>]> <remote name> <local file>\n",
+		"  %s <host[:<port>]> <remote filename> [<local filename>]\n",
 		progname, progname, progname)
 	os.Exit(1)
 }
@@ -28,7 +28,10 @@ func main() {
 		case "server":
 			server()
 		default:
-			usage()
+			if len(os.Args) < 3 {
+				usage()
+			}
+			client()
 		}
 	} else {
 		usage()

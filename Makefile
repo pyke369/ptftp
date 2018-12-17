@@ -16,6 +16,6 @@ debclean:
 
 # run targets
 client: ptftp
-	@./ptftp localhost remote local
+	@./ptftp localhost pxelinux.0
 server: ptftp
-	@ulimit -n 8192 && ./ptftp server ptftp.conf
+	@ulimit -n 65536 && ./ptftp server ptftp.conf

@@ -1,3 +1,9 @@
+ptftp (1.1.0) stable; urgency=medium
+
+  * add TFTP client code
+
+ -- Pierre-Yves Kerembellec <py.kerembellec@gmail.com>  Mon, 17 Dec 2018 18:10:50 +0100
+
 ptftp (1.0.1) stable; urgency=medium
 
   * cancel HTTP backend if client disconnects

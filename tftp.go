@@ -177,7 +177,7 @@ func tftpHandler(packet []byte, local, remote string) {
 				binary.BigEndian.PutUint16(lpacket[0:], 3)
 				block = ((toffset / blksize) + 1) % 65536
 				binary.BigEndian.PutUint16(lpacket[2:], uint16(block))
-				if bsize > 0 {
+				if bsize > 0 && len(content) >= coffset+bsize {
 					copy(lpacket[4:], content[coffset:coffset+bsize])
 				}
 				handle.Write(lpacket)
