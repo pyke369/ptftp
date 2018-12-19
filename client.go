@@ -111,9 +111,9 @@ func client() {
 								received += lsize
 								if duration := float64(time.Now().Sub(start)) / float64(time.Second); duration > 0 {
 									if tsize != 0 {
-										fmt.Fprintf(os.Stderr, "\r%s/%s (%.1fMb/s)  ", hsize(received), hsize(tsize), hbandwidth(float64(received)/duration))
+										fmt.Fprintf(os.Stderr, "\r%s/%s (%s)  ", hsize(received), hsize(tsize), hbandwidth(float64(received)/duration))
 									} else {
-										fmt.Fprintf(os.Stderr, "\r%s (%.1fMb/s)  ", hsize(received), (float64(received)*8)/(duration*1000*1000))
+										fmt.Fprintf(os.Stderr, "\r%s (%s)  ", hsize(received), (float64(received)*8)/(duration*1000*1000))
 									}
 								}
 							}
