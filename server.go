@@ -16,7 +16,7 @@ import (
 
 var (
 	config *uconfig.UConfig
-	logger *ulog.ULog
+	log    *ulog.ULog
 	debug  bool
 )
 
@@ -31,22 +31,36 @@ func server() {
 		fmt.Fprintf(os.Stderr, "invalid configuration (%v) - exiting\n", err)
 		os.Exit(1)
 	}
-	logger = ulog.New(config.GetString("server.log", "console(output=stdout)"))
-	logger.Info(map[string]interface{}{"event": "start", "config": cpath, "pid": os.Getpid(), "version": version})
+	log = ulog.New(config.GetString("server.log", "console(output=stdout,time=msdatetime)"))
+	log.Info(map[string]interface{}{"scope": "server", "event": "start", "config": cpath, "pid": os.Getpid(), "version": version})
 
+	// handle configuration reload and activate/deactive debug logging
 	go func() {
 		signals := make(chan os.Signal, 1)
-		signal.Notify(signals, syscall.SIGHUP)
+		signal.Notify(signals, syscall.SIGHUP, syscall.SIGUSR1)
 		for {
 			signal := <-signals
-			switch {
-			case signal == syscall.SIGHUP:
+			switch signal {
+			case syscall.SIGHUP:
 				config.Load(cpath)
-				logger.Load(config.GetString("server.log", "console(output=stdout)"))
-				logger.Info(map[string]interface{}{"event": "reload", "config": cpath, "pid": os.Getpid(), "version": version})
+				log.Load(config.GetString("server.log", "console(output=stdout)"))
+				log.Info(map[string]interface{}{"scope": "server", "event": "reload", "config": cpath, "pid": os.Getpid(), "version": version})
+
+			case syscall.SIGUSR1:
+				debug = !debug
+				if debug {
+					log.SetLevel("debug")
+					log.Debug(map[string]interface{}{"scope": "server", "event": "debug", "state": "enabled"})
+				} else {
+					log.Debug(map[string]interface{}{"scope": "server", "event": "debug", "state": "disabled"})
+					log.SetLevel("info")
+				}
 			}
 		}
 	}()
+
+	// start cache handler
+	cacheHandler()
 
 	// start TFTP and HTTP listeners
 	http.HandleFunc("/", httpHandler)
@@ -54,7 +68,7 @@ func server() {
 		if listen := strings.Split(config.GetStringMatch(path, "_", "^(tftp|http)@.*?:\\d+$"), "@"); listen[0] != "_" {
 			if listen[0] == "tftp" {
 				if address, err := net.ResolveUDPAddr("udp", strings.TrimLeft(listen[1], "*")); err == nil {
-					logger.Info(map[string]interface{}{"event": "listen", "protocol": "tftp", "listen": listen[1]})
+					log.Info(map[string]interface{}{"scope": "server", "event": "listen", "protocol": "tftp", "listen": listen[1]})
 					go func(address *net.UDPAddr) {
 						for {
 							if handle, err := net.ListenUDP("udp", address); err == nil {
@@ -77,7 +91,7 @@ func server() {
 					ReadTimeout: time.Duration(config.GetDurationBounds("master.read_timeout", 10, 5, 60)) * time.Second,
 					IdleTimeout: time.Duration(config.GetDurationBounds("master.idle_timeout", 20, 5, 60)) * time.Second,
 				}
-				logger.Info(map[string]interface{}{"event": "listen", "protocol": "http", "listen": listen[1]})
+				log.Info(map[string]interface{}{"scope": "server", "event": "listen", "protocol": "http", "listen": listen[1]})
 				go func(server *http.Server) {
 					for {
 						server.ListenAndServe()
@@ -87,23 +101,6 @@ func server() {
 			}
 		}
 	}
-
-	// activate/deactive debug logging
-	go func() {
-		signals := make(chan os.Signal, 1)
-		signal.Notify(signals, syscall.SIGUSR1)
-		for {
-			<-signals
-			debug = !debug
-			if debug {
-				logger.SetLevel("debug")
-				logger.Debug(map[string]interface{}{"event": "debug", "state": "enabled"})
-			} else {
-				logger.Debug(map[string]interface{}{"event": "debug", "state": "disabled"})
-				logger.SetLevel("info")
-			}
-		}
-	}()
 
 	// wait forever
 	select {}

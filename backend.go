@@ -15,11 +15,11 @@ import (
 	"github.com/pyke369/golang-support/rcache"
 )
 
-func fileBackend(target string, offset, length int) (total int, content []byte) {
+func backendFile(target string, offset, length int) (total int, content []byte) {
 	start := time.Now()
 	total = -1
 	defer func() {
-		logger.Debug("FILE %s [ %d - %d ] > %d / %d (%d ms)", target, offset, offset+length-1, total, len(content), time.Now().Sub(start)/time.Millisecond)
+		log.Debug("FILE %s [ %d - %d ] > %d / %d (%d ms)", target, offset, offset+length-1, len(content), total, time.Now().Sub(start)/time.Millisecond)
 	}()
 	if info, err := os.Stat(target); err == nil && info.Mode().IsRegular() {
 		total = int(info.Size())
@@ -38,11 +38,11 @@ func fileBackend(target string, offset, length int) (total int, content []byte) 
 	return total, content
 }
 
-func httpBackend(target string, offset, length, timeout int, headers map[string]string) (total int, content []byte) {
+func backendHTTP(target string, offset, length, timeout int, headers map[string]string) (total int, content []byte) {
 	start := time.Now()
 	total = -1
 	defer func() {
-		logger.Debug("HTTP %s [ %d - %d ] > %d / %d (%d ms)", target, offset, offset+length-1, total, len(content), time.Now().Sub(start)/time.Millisecond)
+		log.Debug("HTTP %s [ %d - %d ] > %d / %d (%d ms)", target, offset, offset+length-1, len(content), total, time.Now().Sub(start)/time.Millisecond)
 	}()
 	request, _ := http.NewRequest(http.MethodGet, target, nil)
 	request.Header.Add("User-Agent", fmt.Sprintf("%s/%s", progname, version))
@@ -72,11 +72,11 @@ func httpBackend(target string, offset, length, timeout int, headers map[string]
 	return total, content
 }
 
-func execBackend(target string, timeout int, env []string) (total int, content []byte) {
+func backendExec(target string, timeout int, env []string) (total int, content []byte) {
 	start := time.Now()
 	total = -1
 	defer func() {
-		logger.Debug("EXEC %s > %d / %d (%d ms)", target, total, len(content), time.Now().Sub(start)/time.Millisecond)
+		log.Debug("EXEC %s > %d / %d (%d ms)", target, total, len(content), time.Now().Sub(start)/time.Millisecond)
 	}()
 	parts := strings.Split(target, " ")
 	command := &exec.Cmd{Path: parts[0], Args: parts, Env: append(os.Environ(), env...)}

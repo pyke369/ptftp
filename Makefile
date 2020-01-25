@@ -1,15 +1,14 @@
 #!/bin/sh
 
-# default target
-ptftp: *.go
-	@export CGO_ENABLED=0; go build -o ptftp *.go && strip ptftp
-
 # build targets
-deb:
-	@debuild -e GOROOT -e PATH -i -us -uc -b
+ptftp: *.go
+	@export GOPATH=/tmp/go; export CGO_ENABLED=0; go build -trimpath -o ptftp *.go && strip ptftp
+
 clean:
-distclean: clean
+distclean:
 	@rm -rf ptftp
+deb:
+	@debuild -e GOROOT -e GOPATH -e PATH -i -us -uc -b
 debclean:
 	@debuild clean
 	@rm -f ../ptftp_*

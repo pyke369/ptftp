@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/pyke369/golang-support/rcache"
+	"github.com/pyke369/golang-support/uconfig"
 )
 
 func tftpHandler(packet []byte, local, remote string) {
@@ -57,7 +58,7 @@ func tftpHandler(packet []byte, local, remote string) {
 			for name, value := range options {
 				soptions += fmt.Sprintf("%s=%s ", name, value)
 			}
-			logger.Info(map[string]interface{}{"protocol": "tftp", "event": "request", "local": handle.LocalAddr().String(), "remote": remote, "file": file,
+			log.Info(map[string]interface{}{"scope": "tftp", "event": "request", "local": handle.LocalAddr().String(), "remote": remote, "file": file,
 				"options": strings.TrimSpace(soptions)})
 
 			// check routes/backends and gather requested file information
@@ -76,7 +77,7 @@ func tftpHandler(packet []byte, local, remote string) {
 								target = matcher.ReplaceAllString(file, config.GetString("routes."+route+"."+backend+".target", ""))
 								switch mode {
 								case "file":
-									tsize, content = fileBackend(target, 0, 64<<10)
+									tsize, content = backendFile(target, 0, 64<<10)
 								case "http":
 									for _, path := range config.GetPaths("routes." + route + "." + backend + ".headers") {
 										if value := strings.TrimSpace(config.GetString(path, "")); value != "" {
@@ -85,7 +86,20 @@ func tftpHandler(packet []byte, local, remote string) {
 											}
 										}
 									}
-									tsize, content = httpBackend(target, 0, 64<<10, timeout, headers)
+									tsize, content = backendHTTP(target, 0, 64<<10, timeout, headers)
+									if match = config.GetString("routes."+route+"."+backend+".cache.match", ""); match != "" && tsize >= 0 {
+										if cmatcher := rcache.Get(match); cmatcher != nil && cmatcher.MatchString(file) {
+											if path := matcher.ReplaceAllString(file, config.GetString("routes."+route+"."+backend+".cache.path", "")); path != "" {
+												select {
+												case cacheJobs <- CACHEJOB{"tftp", target, path, tsize, headers,
+													uconfig.Duration(config.GetDurationBounds("routes."+route+"."+backend+".cache.delay", 3, 1, 60)),
+													int(config.GetIntegerBounds("routes."+route+"."+backend+".cache.concurrency", 32, 1, 32)),
+												}:
+												default:
+												}
+											}
+										}
+									}
 								case "exec":
 									for _, path := range config.GetPaths("routes." + route + "." + backend + ".env") {
 										if value := strings.TrimSpace(config.GetString(path, "")); value != "" {
@@ -94,7 +108,7 @@ func tftpHandler(packet []byte, local, remote string) {
 											}
 										}
 									}
-									tsize, content = execBackend(target, timeout, env)
+									tsize, content = backendExec(target, timeout, env)
 								}
 								if tsize >= 0 {
 									break found
@@ -107,7 +121,7 @@ func tftpHandler(packet []byte, local, remote string) {
 			}
 			if tsize < 0 {
 				handle.Write(append([]byte{0, 5, 0, 1}, append([]byte("file not found"), 0)...))
-				logger.Warn(map[string]interface{}{"protocol": "tftp", "event": "error", "local": handle.LocalAddr().String(), "remote": remote, "file": file,
+				log.Warn(map[string]interface{}{"scope": "tftp", "event": "error", "local": handle.LocalAddr().String(), "remote": remote, "file": file,
 					"code": 1, "message": "file not found"})
 				return
 			}
@@ -147,7 +161,7 @@ func tftpHandler(packet []byte, local, remote string) {
 					soptions += fmt.Sprintf("%s=%s ", name, value)
 				}
 				if len(lpacket) > 2 {
-					logger.Debug("%s > %s OACK (%s)", handle.LocalAddr().String(), remote, strings.TrimSpace(soptions))
+					log.Debug("%s > %s OACK (%s)", handle.LocalAddr().String(), remote, strings.TrimSpace(soptions))
 					handle.Write(lpacket)
 				}
 			}
@@ -158,18 +172,18 @@ func tftpHandler(packet []byte, local, remote string) {
 		sloop:
 			for {
 				if retries > 2 {
-					logger.Warn(map[string]interface{}{"protocol": "tftp", "event": "error", "local": handle.LocalAddr().String(), "remote": remote, "file": file,
+					log.Warn(map[string]interface{}{"scope": "tftp", "event": "error", "local": handle.LocalAddr().String(), "remote": remote, "file": file,
 						"mode": mode, "size": tsize, "sent": toffset, "code": 0, "message": "retries count exceeded"})
 					break sloop
 				}
 				bsize := int(math.Min(float64(blksize), float64(tsize-toffset)))
 				if bsize > 0 && coffset+bsize > len(content) {
-					count := (8 << 20) / blksize
+					count := int(config.GetSizeBounds("server.block_size", 2<<20, 1<<20, 16<<20)) / blksize
 					switch mode {
 					case "file":
-						_, content = fileBackend(target, toffset, blksize*count)
+						_, content = backendFile(target, toffset, blksize*count)
 					case "http":
-						_, content = httpBackend(target, toffset, blksize*count, timeout, headers)
+						_, content = backendHTTP(target, toffset, blksize*count, timeout, headers)
 					}
 					coffset = 0
 				}
@@ -181,7 +195,7 @@ func tftpHandler(packet []byte, local, remote string) {
 					copy(lpacket[4:], content[coffset:coffset+bsize])
 				}
 				handle.Write(lpacket)
-				logger.Debug("%s > %s DATA (block %d / %d bytes)", handle.LocalAddr().String(), remote, block, bsize)
+				log.Debug("%s > %s DATA (block %d / %d bytes)", handle.LocalAddr().String(), remote, block, bsize)
 				retries++
 				rstart := time.Now()
 			aloop:
@@ -199,17 +213,16 @@ func tftpHandler(packet []byte, local, remote string) {
 						case 4:
 							if size >= 4 {
 								ablock := binary.BigEndian.Uint16(lpacket[2:])
-								logger.Debug("%s > %s ACK (block %d)", remote, handle.LocalAddr().String(), ablock)
+								log.Debug("%s > %s ACK (block %d)", remote, handle.LocalAddr().String(), ablock)
 								if int(ablock) == block {
 									toffset += bsize
 									coffset += bsize
 									retries = 0
 									if bsize < blksize {
-										if elapsed = int(time.Now().Sub(sstart) / time.Millisecond); elapsed == 0 {
-											elapsed = 1
-										}
-										logger.Info(map[string]interface{}{"protocol": "tftp", "event": "response", "local": handle.LocalAddr().String(), "remote": remote, "file": file,
-											"mode": mode, "size": tsize, "sent": toffset, "duration": elapsed, "bandwidth": (toffset * 8) / elapsed})
+										duration := time.Now().Sub(sstart)
+										log.Info(map[string]interface{}{"scope": "tftp", "event": "response", "local": handle.LocalAddr().String(), "remote": remote,
+											"file": file, "mode": mode, "size": tsize, "sent": toffset, "duration": hduration(duration),
+											"bandwidth": hbandwidth(float64(toffset) / (float64(duration) / float64(time.Second)))})
 										break sloop
 									}
 									break aloop
@@ -224,13 +237,13 @@ func tftpHandler(packet []byte, local, remote string) {
 							if size >= 5 && lpacket[len(lpacket)-1] == 0 {
 								message = string(lpacket[4 : len(lpacket)-1])
 							}
-							logger.Warn(map[string]interface{}{"protocol": "tftp", "event": "error", "local": handle.LocalAddr().String(), "remote": remote, "file": file,
-								"mode": mode, "size": tsize, "sent": toffset, "code": code, "message": message})
+							log.Warn(map[string]interface{}{"scope": "tftp", "event": "error", "local": handle.LocalAddr().String(), "remote": remote,
+								"file": file, "mode": mode, "size": tsize, "sent": toffset, "code": code, "message": message})
 							break sloop
 						default:
 							handle.Write(append([]byte{0, 5, 0, 4}, append([]byte("illegal TFTP operation"), 0)...))
-							logger.Warn(map[string]interface{}{"protocol": "tftp", "event": "error", "local": handle.LocalAddr().String(), "remote": remote, "file": file,
-								"mode": mode, "size": tsize, "sent": toffset, "code": 4, "message": fmt.Sprintf("illegal TFTP operation %d", opcode)})
+							log.Warn(map[string]interface{}{"scope": "tftp", "event": "error", "local": handle.LocalAddr().String(), "remote": remote,
+								"file": file, "mode": mode, "size": tsize, "sent": toffset, "code": 4, "message": fmt.Sprintf("illegal TFTP operation %d", opcode)})
 							break sloop
 						}
 					}

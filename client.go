@@ -27,15 +27,18 @@ func hsize(size int) string {
 }
 func hbandwidth(bandwidth float64) string {
 	if bandwidth < (1000*1000)/8 {
-		return fmt.Sprintf("%dkb/s", (bandwidth*8)/1000)
+		return fmt.Sprintf("%.0fkb/s", (bandwidth*8)/1000)
 	}
-	return fmt.Sprintf("%.1fMb/s", (bandwidth*8)/(1000*1000))
+	return fmt.Sprintf("%.2fMb/s", (bandwidth*8)/(1000*1000))
 }
 func hduration(duration time.Duration) string {
-	if duration < time.Second {
-		return fmt.Sprintf("%dms", duration/time.Millisecond)
+	if duration < time.Millisecond {
+		return fmt.Sprintf("%.0fus", float64(duration)/float64(time.Microsecond))
 	}
-	return fmt.Sprintf("%.1fs", float64(duration)/float64(time.Second))
+	if duration < time.Second {
+		return fmt.Sprintf("%.0fms", float64(duration)/float64(time.Millisecond))
+	}
+	return fmt.Sprintf("%.2fs", float64(duration)/float64(time.Second))
 }
 
 func client() {
@@ -75,7 +78,7 @@ func client() {
 				packet = append(packet, append([]byte(rfile), 0)...)
 				packet = append(packet, append([]byte("octet"), 0)...)
 				packet = append(packet, append([]byte("blksize"), 0)...)
-				packet = append(packet, append([]byte("1456"), 0)...)
+				packet = append(packet, append([]byte("16384"), 0)...)
 				packet = append(packet, append([]byte("tsize"), 0)...)
 				packet = append(packet, append([]byte("0"), 0)...)
 				if _, err := handle.WriteToUDP(packet, aremote); err != nil {
