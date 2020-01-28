@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"net"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -30,7 +31,7 @@ func tftpHandler(packet []byte, local, remote string) {
 
 			// parse packet (file, mode and options)
 			file, option, options, blksize, timeout, tsize, windowsize := "", "", map[string]string{}, 512, 4, -1, 1
-			mode, target, content, headers, env := "", "", []byte{}, map[string]string{}, []string{}
+			mode, target, ftarget, content, headers, env := "", "", "", []byte{}, map[string]string{}, []string{}
 			_ = windowsize
 			for index, field := range bytes.Split(packet[2:], []byte{0}) {
 				switch index {
@@ -77,6 +78,7 @@ func tftpHandler(packet []byte, local, remote string) {
 								target = matcher.ReplaceAllString(file, config.GetString("routes."+route+"."+backend+".target", ""))
 								switch mode {
 								case "file":
+									ftarget = target
 									tsize, content = backendFile(target, 0, 64<<10)
 								case "http":
 									for _, path := range config.GetPaths("routes." + route + "." + backend + ".headers") {
@@ -178,6 +180,12 @@ func tftpHandler(packet []byte, local, remote string) {
 				}
 				bsize := int(math.Min(float64(blksize), float64(tsize-toffset)))
 				if bsize > 0 && coffset+bsize > len(content) {
+					if mode == "http" && ftarget != "" {
+						if info, err := os.Stat(ftarget); err == nil && info.Mode().IsRegular() && int(info.Size()) == tsize {
+							fmt.Printf("TFTP switching to file mode\n")
+							mode, target = "file", ftarget
+						}
+					}
 					count := int(config.GetSizeBounds("server.block_size", 2<<20, 1<<20, 16<<20)) / blksize
 					switch mode {
 					case "file":

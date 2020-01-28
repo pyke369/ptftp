@@ -1,3 +1,9 @@
+ptftp (1.2.1) stable; urgency=medium
+
+  * also add dynamic switching to local file mode for TFTP frontend
+
+ -- Pierre-Yves Kerembellec <py.kerembellec@gmail.com>  Tue, 28 Jan 2020 10:48:40 +0100
+
 ptftp (1.2.0) stable; urgency=medium
 
   * add an asynchronous remote documents side caching mechanism
