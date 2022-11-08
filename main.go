@@ -7,8 +7,8 @@ import (
 )
 
 const (
-	progname = "ptftp"
-	version  = "1.2.1"
+	PROGNAME = "ptftp"
+	VERSION  = "1.2.2"
 )
 
 func usage() {
@@ -16,7 +16,7 @@ func usage() {
 		"  %s version\n"+
 		"  %s server [<configuration file>]\n"+
 		"  %s <host[:<port>]> <remote filename> [<local filename>]\n",
-		progname, progname, progname)
+		PROGNAME, PROGNAME, PROGNAME)
 	os.Exit(1)
 }
 
@@ -24,14 +24,14 @@ func main() {
 	if len(os.Args) > 1 {
 		switch strings.ToLower(os.Args[1]) {
 		case "version":
-			fmt.Printf("%s v%s\n", progname, version)
+			fmt.Printf("%s v%s\n", PROGNAME, VERSION)
 		case "server":
-			server()
+			Server()
 		default:
 			if len(os.Args) < 3 {
 				usage()
 			}
-			client()
+			Client()
 		}
 	} else {
 		usage()

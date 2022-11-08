@@ -2,15 +2,16 @@
 
 # build targets
 ptftp: *.go
-	@export GOPATH=/tmp/go; export CGO_ENABLED=0; go build -trimpath -o ptftp *.go && strip ptftp
-
+	@env GOPATH=/tmp/go go get -d && env GOPATH=/tmp/go CGO_ENABLED=0 go build -trimpath -o ptftp
+	@-strip ptftp 2>/dev/null || true
+	@-upx -9 ptftp 2>/dev/null || true
 clean:
 distclean:
-	@rm -rf ptftp
+	@rm -rf ptftp *.upx
 deb:
 	@debuild -e GOROOT -e GOPATH -e PATH -i -us -uc -b
 debclean:
-	@debuild clean
+	@debuild -- clean
 	@rm -f ../ptftp_*
 
 # run targets

@@ -1,3 +1,9 @@
+ptftp (1.2.2) stable; urgency=medium
+
+  * upgrade to golang 1.19
+
+ -- Pierre-Yves Kerembellec <py.kerembellec@gmail.com>  Tue, 08 Nov 2022 09:23:09 +0100
+
 ptftp (1.2.1) stable; urgency=medium
 
   * also add dynamic switching to local file mode for TFTP frontend

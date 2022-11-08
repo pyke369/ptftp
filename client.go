@@ -11,7 +11,24 @@ import (
 	"time"
 )
 
-func hsize(size int) string {
+func ClientBandwidth(bandwidth float64) string {
+	if bandwidth < (1000*1000)/8 {
+		return fmt.Sprintf("%.0fkb/s", (bandwidth*8)/1000)
+	}
+	return fmt.Sprintf("%.2fMb/s", (bandwidth*8)/(1000*1000))
+}
+
+func ClientDuration(duration time.Duration) string {
+	if duration < time.Millisecond {
+		return fmt.Sprintf("%.0fus", float64(duration)/float64(time.Microsecond))
+	}
+	if duration < time.Second {
+		return fmt.Sprintf("%.0fms", float64(duration)/float64(time.Millisecond))
+	}
+	return fmt.Sprintf("%.2fs", float64(duration)/float64(time.Second))
+}
+
+func clientSize(size int) string {
 	if size < 1024 {
 		return fmt.Sprintf("%dB", size)
 	} else if size < 1024*1024 {
@@ -25,23 +42,8 @@ func hsize(size int) string {
 	}
 	return fmt.Sprintf("%.2fGB", float64(size)/(1024*1024*1024))
 }
-func hbandwidth(bandwidth float64) string {
-	if bandwidth < (1000*1000)/8 {
-		return fmt.Sprintf("%.0fkb/s", (bandwidth*8)/1000)
-	}
-	return fmt.Sprintf("%.2fMb/s", (bandwidth*8)/(1000*1000))
-}
-func hduration(duration time.Duration) string {
-	if duration < time.Millisecond {
-		return fmt.Sprintf("%.0fus", float64(duration)/float64(time.Microsecond))
-	}
-	if duration < time.Second {
-		return fmt.Sprintf("%.0fms", float64(duration)/float64(time.Millisecond))
-	}
-	return fmt.Sprintf("%.2fs", float64(duration)/float64(time.Second))
-}
 
-func client() {
+func Client() {
 	remote, rfile, lfile, target, received, start := os.Args[1], os.Args[2], "", os.Stdout, 0, time.Time{}
 	if _, _, err := net.SplitHostPort(remote); err != nil {
 		remote += ":69"
@@ -112,11 +114,11 @@ func client() {
 									}
 								}
 								received += lsize
-								if duration := float64(time.Now().Sub(start)) / float64(time.Second); duration > 0 {
+								if duration := float64(time.Since(start)) / float64(time.Second); duration > 0 {
 									if tsize != 0 {
-										fmt.Fprintf(os.Stderr, "\r%s/%s (%s)  ", hsize(received), hsize(tsize), hbandwidth(float64(received)/duration))
+										fmt.Fprintf(os.Stderr, "\r%s/%s (%s)  ", clientSize(received), clientSize(tsize), ClientBandwidth(float64(received)/duration))
 									} else {
-										fmt.Fprintf(os.Stderr, "\r%s (%s)  ", hsize(received), (float64(received)*8)/(duration*1000*1000))
+										fmt.Fprintf(os.Stderr, "\r%s (%s)  ", clientSize(received), ClientBandwidth(float64(received)/duration))
 									}
 								}
 							}
@@ -182,8 +184,8 @@ func client() {
 					binary.BigEndian.PutUint16(packet[2:], block)
 					handle.WriteToUDP(packet, aremote)
 					if lsize >= 0 && lsize < blksize {
-						if duration := float64(time.Now().Sub(start)) / float64(time.Second); duration > 0 {
-							fmt.Fprintf(os.Stderr, "\r%s in %s (%s)               \n", hsize(received), hduration(time.Now().Sub(start)), hbandwidth(float64(received)/duration))
+						if duration := float64(time.Since(start)) / float64(time.Second); duration > 0 {
+							fmt.Fprintf(os.Stderr, "\r%s in %s (%s)               \n", clientSize(received), ClientDuration(time.Since(start)), ClientBandwidth(float64(received)/duration))
 						}
 						target.Close()
 						os.Exit(0)
