@@ -18,4 +18,4 @@ debclean:
 client: ptftp
 	@./ptftp localhost pxelinux.0
 server: ptftp
-	@ulimit -n 65536 && ./ptftp server ptftp.conf
+	@./ptftp server ptftp.conf

@@ -21,6 +21,7 @@ type CACHEJOB struct {
 	Headers     map[string]string
 	Delay       time.Duration
 	Concurrency int
+	Refresh     int
 }
 
 var (
@@ -29,14 +30,14 @@ var (
 )
 
 func CacheHandler() {
-	workers := int(Config.GetIntegerBounds("server.cache_workers", 16, 1, 64))
+	workers := int(Config.GetIntegerBounds("server.cache_workers", 64, 1, 64))
 	CacheJobs = make(chan CACHEJOB, workers*8)
 	for index := 1; index <= workers; index++ {
 		go func() {
 			for {
 				job := <-CacheJobs
 				root := filepath.Dir(job.Local)
-				target := fmt.Sprintf("%s/_%s", root, filepath.Base(job.Local))
+				target := filepath.Join(root, "_"+filepath.Base(job.Local))
 				if _, err := os.Stat(target); err == nil {
 					continue
 				}
@@ -47,14 +48,12 @@ func CacheHandler() {
 
 				Logger.Info(map[string]interface{}{"scope": "cache", "trigger": job.Trigger, "event": "request", "remote": job.Remote, "local": job.Local})
 				if err := os.MkdirAll(root, 0755); err != nil {
-					Logger.Warn(map[string]interface{}{"scope": "cache", "trigger": job.Trigger, "event": "error", "remote": job.Remote, "local": job.Local,
-						"error": fmt.Sprintf("%v", err)})
+					Logger.Warn(map[string]interface{}{"scope": "cache", "trigger": job.Trigger, "event": "error", "remote": job.Remote, "local": job.Local, "error": fmt.Sprintf("%v", err)})
 					continue
 				}
 
 				if handle, err := os.OpenFile(target, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644); err != nil {
-					Logger.Warn(map[string]interface{}{"scope": "cache", "trigger": job.Trigger, "event": "error", "remote": job.Remote, "local": job.Local,
-						"error": fmt.Sprintf("%v", err)})
+					Logger.Warn(map[string]interface{}{"scope": "cache", "trigger": job.Trigger, "event": "error", "remote": job.Remote, "local": job.Local, "error": fmt.Sprintf("%v", err)})
 				} else {
 					received, start := 0, time.Now()
 					if job.Size > 0 {
@@ -117,6 +116,9 @@ func CacheHandler() {
 							"error": fmt.Sprintf("transfer failed (size:%d received:%d)", job.Size, received)})
 					} else {
 						os.Rename(target, job.Local)
+						if job.Refresh != 0 {
+							os.WriteFile(filepath.Join(root, "."+filepath.Base(job.Local)+".refresh"), []byte(fmt.Sprintf("%d\n", job.Refresh)), 0644)
+						}
 						duration := time.Since(start)
 						Logger.Info(map[string]interface{}{"scope": "cache", "trigger": job.Trigger, "event": "completion", "remote": job.Remote, "local": job.Local,
 							"size": job.Size, "duration": ClientDuration(duration), "bandwidth": ClientBandwidth(float64(job.Size) / (float64(duration) / float64(time.Second)))})

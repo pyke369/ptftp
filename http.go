@@ -59,15 +59,27 @@ func HttpHandler(response http.ResponseWriter, request *http.Request) {
 								}
 							}
 							tsize, _ = BackendHTTP(target, 0, 1, timeout, headers)
-							if match = Config.GetString("routes."+route+"."+backend+".cache.match", ""); match != "" && tsize >= 0 {
-								if cmatcher := rcache.Get(match); cmatcher != nil && cmatcher.MatchString(file) {
-									if path := matcher.ReplaceAllString(file, Config.GetString("routes."+route+"."+backend+".cache.path", "")); path != "" {
-										select {
-										case CacheJobs <- CACHEJOB{"http", target, path, tsize, headers,
-											uconfig.Duration(Config.GetDurationBounds("routes."+route+"."+backend+".cache.delay", 3, 1, 60)),
-											int(Config.GetIntegerBounds("routes."+route+"."+backend+".cache.concurrency", 32, 1, 32)),
-										}:
-										default:
+							if tsize >= 0 {
+								for _, policy := range Config.GetStrings("routes." + route + "." + backend + ".cache.policies") {
+									prefix := "routes." + route + "." + backend + ".cache." + policy
+									if match = Config.GetString(prefix+".match", ""); match != "" {
+										if cmatcher := rcache.Get(match); cmatcher != nil && cmatcher.MatchString(file) {
+											if path := matcher.ReplaceAllString(file, Config.GetString(prefix+".path", "")); path != "" {
+												select {
+												case CacheJobs <- CACHEJOB{
+													Trigger:     "http",
+													Remote:      target,
+													Local:       path,
+													Size:        tsize,
+													Headers:     headers,
+													Delay:       uconfig.Duration(Config.GetDurationBounds(prefix+".delay", 3, 1, 60)),
+													Concurrency: int(Config.GetIntegerBounds(prefix+".concurrency", 16, 1, 32)),
+													Refresh:     int(Config.GetDurationBounds(prefix+".refresh", 0, 0, 30*86400)),
+												}:
+												default:
+												}
+												break
+											}
 										}
 									}
 								}

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
@@ -16,22 +17,30 @@ import (
 )
 
 func BackendFile(target string, offset, length int) (total int, content []byte) {
-	start := time.Now()
+	start, refresh := time.Now(), 0
 	total = -1
 	defer func() {
 		Logger.Debug("FILE %s [ %d - %d ] > %d / %d (%d ms)", target, offset, offset+length-1, len(content), total, time.Since(start)/time.Millisecond)
 	}()
+	if content, err := os.ReadFile(filepath.Join(filepath.Dir(target), "."+filepath.Base(target)+".refresh")); err == nil {
+		refresh, _ = strconv.Atoi(strings.TrimSpace(string(content)))
+	}
 	if info, err := os.Stat(target); err == nil && info.Mode().IsRegular() {
-		total = int(info.Size())
-		if offset < total {
-			if handle, err := os.Open(target); err == nil {
-				if offset+length > total {
-					length = total - offset
+		if refresh > 0 && int(time.Since(info.ModTime())/time.Second) >= refresh {
+			Logger.Warn(map[string]interface{}{"scope": "cache", "event": "refresh", "local": target, "refresh": refresh})
+			os.Remove(target)
+		} else {
+			total = int(info.Size())
+			if offset < total {
+				if handle, err := os.Open(target); err == nil {
+					if offset+length > total {
+						length = total - offset
+					}
+					content = make([]byte, length)
+					read, _ := handle.ReadAt(content, int64(offset))
+					content = content[:read]
+					handle.Close()
 				}
-				content = make([]byte, length)
-				read, _ := handle.ReadAt(content, int64(offset))
-				content = content[:read]
-				handle.Close()
 			}
 		}
 	}

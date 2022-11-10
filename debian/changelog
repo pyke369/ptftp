@@ -1,3 +1,9 @@
+ptftp (1.2.3) stable; urgency=medium
+
+  * add support for multiple caching policies
+
+ -- Pierre-Yves Kerembellec <py.kerembellec@gmail.com>  Thu, 10 Nov 2022 15:14:49 +0100
+
 ptftp (1.2.2) stable; urgency=medium
 
   * upgrade to golang 1.19

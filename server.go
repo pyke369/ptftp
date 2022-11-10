@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -23,7 +24,7 @@ var (
 func Server() {
 	var err error
 
-	cpath := fmt.Sprintf("/etc/%s.conf", PROGNAME)
+	cpath := filepath.Join("/etc", PROGNAME+".conf")
 	if len(os.Args) > 2 {
 		cpath = os.Args[2]
 	}
