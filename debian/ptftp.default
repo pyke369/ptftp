@@ -1,4 +1,0 @@
-# ptftp base configuration
-
-ENABLED=0
-CONFIGURATION=/etc/ptftp.conf

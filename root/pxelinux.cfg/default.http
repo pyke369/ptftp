@@ -1,4 +1,0 @@
-DEFAULT netboot
-LABEL netboot
-LINUX http://192.168.37.128/netboot.cosmic/kernel
-APPEND boot=live net.ifnames=0 vga=773 initrd=http://192.168.37.128/netboot.cosmic/initrd fetch=http://192.168.37.128/netboot.cosmic/rootfs.squashfs action=shell

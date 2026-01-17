@@ -1,6 +1,0 @@
-#!/bin/sh
-
-clear
-apt-get install -y debootstrap
-sleep 10
-clear

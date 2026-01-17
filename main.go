@@ -1,22 +1,22 @@
 package main
 
 import (
-	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
-)
 
-const (
-	PROGNAME = "ptftp"
-	VERSION  = "1.2.3"
+	c "ptftp/client"
+	"ptftp/common"
+	s "ptftp/server"
 )
 
 func usage() {
-	fmt.Fprintf(os.Stderr, "usage:\n"+
-		"  %s version\n"+
-		"  %s server [<configuration file>]\n"+
-		"  %s <host[:<port>]> <remote filename> [<local filename>]\n",
-		PROGNAME, PROGNAME, PROGNAME)
+	progname := filepath.Base(os.Args[0])
+	os.Stderr.WriteString("usage:\n\n" +
+		progname + " version\n" +
+		progname + " server <configuration>\n" +
+		progname + " <host>[:<port>] <remote> [<local>]\n",
+	)
 	os.Exit(1)
 }
 
@@ -24,15 +24,18 @@ func main() {
 	if len(os.Args) > 1 {
 		switch strings.ToLower(os.Args[1]) {
 		case "version":
-			fmt.Printf("%s v%s\n", PROGNAME, VERSION)
+			os.Stdout.WriteString(common.PROGNAME + " v" + common.PROGVER + "\n")
+
 		case "server":
-			Server()
+			s.Run()
+
 		default:
 			if len(os.Args) < 3 {
 				usage()
 			}
-			Client()
+			c.Run()
 		}
+
 	} else {
 		usage()
 	}

@@ -1,6 +1,4 @@
-ptftp
-debian/*debhelper*
-debian/*substvars*
-debian/files
-*.upx
 _*
+ptftp
+vendor
+*.upx

@@ -1,21 +1,26 @@
 #!/bin/sh
 
+PROGNAME=ptftp
+
 # build targets
-ptftp: *.go
-	@env GOPATH=/tmp/go go get -d && env GOPATH=/tmp/go CGO_ENABLED=0 go build -trimpath -o ptftp
-	@-strip ptftp 2>/dev/null || true
-	@-upx -9 ptftp 2>/dev/null || true
-clean:
+$(PROGNAME): *.go */*.go
+	@env GOPATH=/tmp/go go mod vendor && env GOPATH=/tmp/go CGO_ENABLED=0 go build -trimpath -o $(PROGNAME)
+	@-strip $(PROGNAME) 2>/dev/null || true
+	@-#upx -9 $(PROGNAME) 2>/dev/null || true
+update:
+	@rm -f go.sum && echo "module $(PROGNAME)\n\ngo 1.25" >go.mod && env GOPATH=/tmp/go GOPROXY=direct go get
+lint:
+	@-go vet ./... || true
+	@-staticcheck ./... || true
+	@-gocritic check -enableAll ./... || true
+	@-govulncheck ./... || true
 distclean:
-	@rm -rf ptftp *.upx
-deb:
-	@debuild -e GOROOT -e GOPATH -e PATH -i -us -uc -b
-debclean:
-	@debuild -- clean
-	@rm -f ../ptftp_*
+	@rm -rf $(PROGNAME) *.upx vendor
 
 # run targets
-client: ptftp
-	@./ptftp localhost pxelinux.0
+version: $(PROGNAME)
+	@./$(PROGNAME) version
+client: $(PROGNAME)
+	@./$(PROGNAME) localhost:6969 alpine.iso
 server: ptftp
-	@./ptftp server ptftp.conf
+	@./$(PROGNAME) server ptftp.conf
